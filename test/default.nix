@@ -16,6 +16,7 @@ let
 in {
   cabal-simple = callPackage ./cabal-simple { inherit haskell; };
   cabal-22 = callPackage ./cabal-22 { inherit haskell; };
+  builder-haddock = callPackage ./builder-haddock { inherit haskell; };
 }
 
 ## possible test cases

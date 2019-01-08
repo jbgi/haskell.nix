@@ -135,6 +135,10 @@ in {
             type = listOfFilteringNulls str;
             default = config.setupInstallFlags;
           };
+          setupHaddockFlags = mkOption {
+            type = listOfFilteringNulls str;
+            default = config.setupHaddockFlags;
+          };
           doExactConfig = mkOption {
             type = bool;
             default = false;
@@ -146,6 +150,14 @@ in {
           doCrossCheck = mkOption {
             type = bool;
             default = config.doCrossCheck;
+          };
+          doHaddock = mkOption {
+            type = bool;
+            default = config.doHaddock;
+          };
+          doHoogle = mkOption {
+            type = bool;
+            default = config.doHoogle;
           };
         };
       };
@@ -221,6 +233,10 @@ in {
       type = listOfFilteringNulls str;
       default = [];
     };
+    setupHaddockFlags = mkOption {
+      type = listOfFilteringNulls str;
+      default = [];
+    };
     preUnpack = mkOption {
       type = nullOr lines;
       default = null;
@@ -269,6 +285,16 @@ in {
       description = "Run doCheck also in cross compilation settings. This can be tricky as the test logic must know how to run the tests on the target.";
       type = bool;
       default = false;
+    };
+    doHaddock = mkOption {
+      description = "Enable building of the Haddock documentation from the annotated Haskell source code.";
+      type = bool;
+      default = true;
+    };
+    doHoogle = mkOption {
+      description = "Enable generation of a Hoogle index while building the Haddock documentation.";
+      type = bool;
+      default = true;
     };
   };
 }

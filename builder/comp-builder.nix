@@ -20,6 +20,9 @@
 , doCrossCheck ? component.doCrossCheck || false
 , dontPatchELF ? true
 , dontStrip ? true
+, doHaddock ? true
+, doHoogle ? true
+, hyperlinkSource ? true
 
 , static ? stdenv.hostPlatform.isMusl
 , deadCodeElimination ? true
@@ -133,6 +136,8 @@ let
       "--with-ld=${stdenv.cc.bintools.targetPrefix}ld"
       "--with-ar=${stdenv.cc.bintools.targetPrefix}ar"
       "--with-strip=${stdenv.cc.bintools.targetPrefix}strip"
+      # HADDOCK
+      "--docdir=${docdir "$doc"}"
       # other flags
       "--enable-executable-stripping"
       "--enable-library-stripping"
@@ -144,6 +149,9 @@ let
       ++ component.configureFlags
   );
 
+  # the target dir for haddock documentation
+  docdir = docoutput: docoutput + "/share/doc/" + componentId.cname;
+
 in stdenv.mkDerivation ({
   name = fullName;
 
@@ -153,6 +161,12 @@ in stdenv.mkDerivation ({
     inherit (package) identifier;
     config = component;
     inherit configFiles;
+
+    # Given the haskell package, returns
+    # the directory containing the haddock documentation.
+    # `null' if no haddock documentation was built.
+    # TODO: fetch the self from the fixpoint instead
+    haddockDir = self: if doHaddock then "${docdir self.doc}/html" else null;
   };
 
   meta = {
@@ -172,7 +186,7 @@ in stdenv.mkDerivation ({
     ++ component.pkgconfig;
 
   nativeBuildInputs =
-    [ghc]
+    [ghc buildPackages.removeReferencesTo]
     ++ lib.optional (component.pkgconfig != []) pkgconfig
     ++ lib.concatMap (c: if c.isHaskell or false
       then builtins.attrValues (c.components.exes or {})
@@ -180,7 +194,11 @@ in stdenv.mkDerivation ({
 
   SETUP_HS = setup + /bin/Setup;
 
+  outputs = ["out" ] ++ (lib.optional (haskellLib.isLibrary componentId) "doc");
+
   # Phases
+  preInstallPhases = ["haddockPhase"];
+
   prePatch = lib.optionalString (cabalFile != null) ''
     cat ${cabalFile} > ${package.identifier.name}.cabal
   '';
@@ -206,6 +224,32 @@ in stdenv.mkDerivation ({
     mkdir -p $out/${name}
     cp dist/test/*.log $out/${name}/
     runHook postCheck
+  '';
+
+  haddockPhase = ''
+    runHook preHaddock
+    ${lib.optionalString (doHaddock && (haskellLib.isLibrary componentId)) ''
+      docdir="${docdir "$doc"}"
+      mkdir -p "$docdir"
+
+      $SETUP_HS haddock \
+        "--html" \
+        ${lib.optionalString doHoogle "--hoogle"} \
+        ${lib.optionalString hyperlinkSource "--hyperlink-source"} \
+        ${lib.concatStringsSep " " component.setupHaddockFlags} \
+        || true  # some packages don't have haddock documentation
+
+      html="dist/doc/html/${componentId.cname}"
+
+      if [ -d "$html" ]; then
+         for x in "$html/src/"*.html; do
+           remove-references-to -t $out $x
+         done
+
+         cp -R "$html" "$docdir"/html
+      fi
+    ''}
+    runHook postHaddock
   '';
 
   # Note: Cabal does *not* copy test executables during the `install` phase.
