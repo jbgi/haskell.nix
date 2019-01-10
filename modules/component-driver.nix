@@ -6,7 +6,22 @@ let
     ghc = config.ghc.package;
     buildGHC = buildModules.config.ghc.package;
     inherit (config) nonReinstallablePkgs;
+    inherit shellEnv withPackage;
   };
+
+  withPackage = package: import ./with-package-wrapper.nix {
+    inherit lib package;
+    inherit (pkgs) stdenv runCommand makeWrapper;
+    inherit (pkgs.xorg) lndir;
+    ghc = config.ghc.package;
+    llvmPackages = null;
+  };
+
+  shellEnv = import ./shell-env.nix {
+    inherit haskellLib;
+    inherit (pkgs) lib stdenv;
+  };
+
 in
 
 {

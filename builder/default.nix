@@ -1,4 +1,4 @@
-{ pkgs, buildPackages, stdenv, lib, haskellLib, ghc, buildGHC, fetchurl, writeText, runCommand, pkgconfig, nonReinstallablePkgs }:
+{ pkgs, buildPackages, stdenv, lib, haskellLib, ghc, buildGHC, fetchurl, writeText, runCommand, pkgconfig, nonReinstallablePkgs, shellEnv, withPackage }:
 
 { flags
 , package
@@ -21,6 +21,8 @@
 , postCheck
 , preInstall
 , postInstall
+
+, shellHook
 
 , ...
 }@config:
@@ -72,12 +74,36 @@ let
   buildComp = componentId: component: comp-builder {
     inherit componentId component package name src flags setup cabalFile patches
             preUnpack postUnpack preConfigure postConfigure preBuild postBuild preCheck postCheck preInstall postInstall
+            shellHook
             ;
   };
 
+  components' = haskellLib.applyComponents buildComp config;
+
+  devEnv = withPackage (comp-builder {
+    name = "${name}-devEnv-shell";
+    inherit setup cabalFile flags src;
+    componentId = { ctype = "lib"; cname = "devEnv"; };  # fixme: dummy values
+    component = {
+      # fixme: needs to be depends of all components
+      depends = lib.filter (p: p != components'.library)
+          (config.components.library.depends
+           ++ (lib.concatMap (p: p.depends) (lib.attrValues config.components.exes))
+           ++ (lib.concatMap (p: p.depends) (lib.attrValues config.components.tests)));
+      frameworks = [];
+      libs = [];
+      doExactConfig = false;
+    };
+    package = { identifier = { name = "devEnv-shell"; version = "0.0"; }; };
+  });
+
 in {
-  components = haskellLib.applyComponents buildComp config;
+  components = components';
   inherit (package) identifier;
-  inherit setup cabalFile;
+  inherit setup cabalFile devEnv;
   isHaskell = true;
+  shell = shellEnv {
+     inherit shellHook;
+     ghcEnv = devEnv;
+  };
 }

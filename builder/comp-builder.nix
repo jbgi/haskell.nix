@@ -15,6 +15,7 @@
 , preBuild ? null, postBuild ? null
 , preCheck ? null, postCheck ? null
 , preInstall ? null, postInstall ? null
+, shellHook ? null
 
 , doCheck ? component.doCheck || componentId.ctype == "test"
 , doCrossCheck ? component.doCrossCheck || false
@@ -144,6 +145,10 @@ let
       ++ component.configureFlags
   );
 
+  executableToolDepends = lib.concatMap (c: if c.isHaskell or false
+      then builtins.attrValues (c.components.exes or {})
+      else [c]) component.build-tools;
+
 in stdenv.mkDerivation ({
   name = fullName;
 
@@ -153,6 +158,8 @@ in stdenv.mkDerivation ({
     inherit (package) identifier;
     config = component;
     inherit configFiles;
+
+    isHaskellLibrary = haskellLib.isLibrary componentId;
   };
 
   meta = {
@@ -174,9 +181,7 @@ in stdenv.mkDerivation ({
   nativeBuildInputs =
     [ghc]
     ++ lib.optional (component.pkgconfig != []) pkgconfig
-    ++ lib.concatMap (c: if c.isHaskell or false
-      then builtins.attrValues (c.components.exes or {})
-      else [c]) component.build-tools;
+    ++ executableToolDepends;
 
   SETUP_HS = setup + /bin/Setup;
 
@@ -228,6 +233,7 @@ in stdenv.mkDerivation ({
     ''}
     runHook postInstall
   '';
+
 }
 // lib.optionalAttrs (patches != []) { inherit patches; }
 // lib.optionalAttrs (preUnpack != "") { inherit preUnpack; }
@@ -240,5 +246,6 @@ in stdenv.mkDerivation ({
 // lib.optionalAttrs (postCheck != "") { inherit postCheck; }
 // lib.optionalAttrs (preInstall != "") { inherit preInstall; }
 // lib.optionalAttrs (postInstall != "") { inherit postInstall; }
+// lib.optionalAttrs (shellHook != "") { inherit shellHook; }
 // lib.optionalAttrs (stdenv.buildPlatform.libc == "glibc"){ LOCALE_ARCHIVE = "${buildPackages.glibcLocales}/lib/locale/locale-archive"; }
 )
