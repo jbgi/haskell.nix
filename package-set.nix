@@ -7,7 +7,7 @@
 let
 
   # packages that we must never try to reinstall.
-  nonReinstallablePkgs = [ "rts" "ghc" "ghc-prim" "integer-gmp" "integer-simple" "base"
+  nonReinstallablePkgs = [ "rts" "ghc" "ghc-heap" "ghc-prim" "integer-gmp" "integer-simple" "base"
                            "array" "deepseq" "pretty" "ghc-boot-th" "template-haskell"];
 
   hackagePkgs = with pkgs.lib;
